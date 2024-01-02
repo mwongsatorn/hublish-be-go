@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  psql:
+    image: postgres:latest
+    container_name: psql
+    environment:
+      POSTGRES_DB: hublish
+      POSTGRES_USER: hublish-user
+      PGUSER: hublish-user
+      POSTGRES_PASSWORD: hublish-password
+    ports:
+      - "5432:5432"
+    volumes:
+      - psql_volume:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - psql
+    restart: unless-stopped
+    volumes:
+      - pgadmin_volume:/var/lib/pgadmin
+
+volumes:
+  psql_volume:
+  pgadmin_volume:

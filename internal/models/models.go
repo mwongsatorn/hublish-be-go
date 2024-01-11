@@ -14,13 +14,9 @@ type CommonFields struct {
 	DeletedAt gorm.DeletedAt `json:"deleted_at" gorm:"index"`
 }
 
-var db *gorm.DB
-
-func SetDatabaseModel(gormDb *gorm.DB) {
-	db = gormDb
+func SetDatabaseModel(db *gorm.DB) {
 	err := db.AutoMigrate(&User{}, &Article{}, &Follow{}, &Favourite{})
 	if err != nil {
 		log.Fatal(err)
 	}
-
 }

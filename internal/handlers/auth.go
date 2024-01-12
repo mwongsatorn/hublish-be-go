@@ -4,13 +4,31 @@ import (
 	"hublish-be-go/internal/database"
 	"hublish-be-go/internal/models"
 	"hublish-be-go/internal/validator"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"fmt"
+	"time"
 )
+
+var (
+	accessTokenKey  = os.Getenv("ACCESSTOKEN_KEY")
+	refreshTokenKey = os.Getenv("REFRESHTOKEN_KEY")
+)
+
+type LoginRequest struct {
+	Username string
+	Password string
+}
+
+type CustomClaims struct {
+	jwt.RegisteredClaims
+	UserID uint `json:"user_id"`
+}
 
 func SignUpUser(c *fiber.Ctx) error {
 	req := new(validator.SignUpRequest)
@@ -50,4 +68,59 @@ func SignUpUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusCreated).JSON(newUser)
 	}
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+}
+
+func LogInUser(c *fiber.Ctx) error {
+
+	req := new(LoginRequest)
+
+	if err := c.BodyParser(req); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+	}
+
+	db := database.DB
+	var foundUser models.User
+
+	findResult := db.Where("username = ?", req.Username).First(&foundUser)
+
+	if findResult.Error != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username or Password is incorrect"})
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(req.Password)); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username or Password is incorrect"})
+	}
+
+	accessToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Hour*24), accessTokenKey)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+	}
+
+	refreshToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Hour*24*3), refreshTokenKey)
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+	}
+
+	c.Cookie(&fiber.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		Expires:  time.Now().Add(24 * time.Hour * 3),
+		HTTPOnly: true,
+	})
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"accessToken": accessToken})
+}
+
+func generateJWTToken(user_id uint, exp time.Time, key string) (string, error) {
+	rawToken := jwt.NewWithClaims(jwt.SigningMethodHS256, CustomClaims{
+		UserID: user_id,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(exp),
+		},
+	})
+
+	token, err := rawToken.SignedString([]byte(key))
+	return token, err
 }

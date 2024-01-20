@@ -3,6 +3,7 @@ package handlers
 import (
 	"hublish-be-go/internal/database"
 	"hublish-be-go/internal/models"
+	"hublish-be-go/internal/utils"
 	"hublish-be-go/internal/validator"
 	"os"
 
@@ -11,6 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -90,12 +92,12 @@ func LogInUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username or Password is incorrect"})
 	}
 
-	accessToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Hour*24), accessTokenKey)
+	accessToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Minute*15), accessTokenKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
 	}
 
-	refreshToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Hour*24*3), refreshTokenKey)
+	refreshToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Hour*24), refreshTokenKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
 	}
@@ -103,12 +105,7 @@ func LogInUser(c *fiber.Ctx) error {
 	foundUser.RefreshTokens = append(foundUser.RefreshTokens, refreshToken)
 	db.Select("refresh_tokens").Save(&foundUser)
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "refreshToken",
-		Value:    refreshToken,
-		Expires:  time.Now().Add(24 * time.Hour * 3),
-		HTTPOnly: true,
-	})
+	utils.SetCookie(c, "refreshToken", refreshToken, time.Now().Add(time.Hour*24))
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"accessToken": accessToken})
 }
@@ -119,28 +116,43 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 	if refreshToken == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Refresh token required"})
 	}
+	utils.ClearCookie(c, "refreshToken")
 
 	token, err := jwt.ParseWithClaims(refreshToken, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(refreshTokenKey), nil
 	})
 	claims, ok := token.Claims.(*CustomClaims)
-	if !token.Valid || err != nil || !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Invalid Token"})
+
+	if (err != nil && !errors.Is(err, jwt.ErrTokenInvalidClaims)) || !ok {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
 	}
 
 	db := database.DB
 	var foundUser models.User
-	findResult := db.Where("id = ? AND ? = ANY(refresh_tokens)", claims.UserID, refreshToken).First(&foundUser)
+	findResult := db.Where("? = ANY(refresh_tokens)", refreshToken).First(&foundUser)
 	if findResult.Error != nil {
 		if findResult.Error == gorm.ErrRecordNotFound {
-			c.ClearCookie("refreshToken")
+			if removeTokensResult := db.First(&foundUser, "id = ?", claims.UserID).Update("refresh_tokens", "{}"); removeTokensResult.Error != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Remove tokens error"})
+			}
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Reuse refresh token"})
 		} else {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
 		}
 	}
 
-	newAccessToken, err := generateJWTToken(claims.UserID, time.Now().Add(time.Hour*24), accessTokenKey)
+	foundUser.RefreshTokens = slices.DeleteFunc(foundUser.RefreshTokens, func(element string) bool {
+		return element == refreshToken
+	})
+
+	if !token.Valid {
+		if removeOldTokenResult := db.Select("refresh_tokens").Save(&foundUser); removeOldTokenResult.Error != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong"})
+		}
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired."})
+	}
+
+	newAccessToken, err := generateJWTToken(claims.UserID, time.Now().Add(time.Hour*15), accessTokenKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
 	}
@@ -150,18 +162,12 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
 	}
 
-	foundUser.RefreshTokens = slices.DeleteFunc(foundUser.RefreshTokens, func(element string) bool {
-		return element == refreshToken
-	})
 	foundUser.RefreshTokens = append(foundUser.RefreshTokens, newRefreshToken)
-	db.Select("refresh_tokens").Save(&foundUser)
+	if updateTokenResult := db.Select("refresh_tokens").Save(&foundUser); updateTokenResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+	}
 
-	c.Cookie(&fiber.Cookie{
-		Name:     "refreshToken",
-		Value:    newRefreshToken,
-		Expires:  time.Now().Add(24 * time.Hour * 3),
-		HTTPOnly: true,
-	})
+	utils.SetCookie(c, "refreshToken", newRefreshToken, time.Now().Add(time.Hour*24))
 
 	return c.JSON(fiber.Map{"accessToken": newAccessToken})
 }

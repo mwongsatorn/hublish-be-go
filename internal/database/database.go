@@ -24,7 +24,10 @@ var (
 	host     = os.Getenv("DB_HOST")
 )
 
-var DB *gorm.DB
+var (
+	DB  *gorm.DB
+	err error
+)
 
 func ConnectDatabase() {
 	connStr := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable", host, username, password, database, port)
@@ -38,7 +41,7 @@ func ConnectDatabase() {
 		},
 	)
 
-	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{
+	DB, err = gorm.Open(postgres.Open(connStr), &gorm.Config{
 		Logger: dbLogger,
 	})
 
@@ -46,7 +49,6 @@ func ConnectDatabase() {
 		log.Fatal(err)
 	}
 
-	DB = db
-	models.SetDatabaseModel(db)
+	models.SetDatabaseModel(DB)
 	fmt.Println("Database connected successfully")
 }

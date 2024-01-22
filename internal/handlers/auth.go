@@ -37,7 +37,7 @@ func SignUpUser(c *fiber.Ctx) error {
 	req := new(validator.SignUpRequest)
 
 	if err := c.BodyParser(req); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a body request."})
 	}
 
 	if err := validator.V.Struct(req); err != nil {
@@ -56,7 +56,7 @@ func SignUpUser(c *fiber.Ctx) error {
 	if findResult.Error == gorm.ErrRecordNotFound {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot hash a password."})
 		}
 		newUser := &models.User{
 			Username: req.Username,
@@ -66,7 +66,7 @@ func SignUpUser(c *fiber.Ctx) error {
 
 		createResult := db.Select([]string{"Username", "Password", "Email"}).Create(newUser)
 		if createResult.Error != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create a user."})
 		}
 		return c.Status(fiber.StatusCreated).JSON(newUser)
 	}
@@ -78,7 +78,7 @@ func LogInUser(c *fiber.Ctx) error {
 	req := new(LoginRequest)
 
 	if err := c.BodyParser(req); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a body request."})
 	}
 
 	db := database.DB
@@ -94,12 +94,12 @@ func LogInUser(c *fiber.Ctx) error {
 
 	accessToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Minute*15), accessTokenKey)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot generate a access token."})
 	}
 
 	refreshToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Hour*24), refreshTokenKey)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot generate a refresh token."})
 	}
 
 	foundUser.RefreshTokens = append(foundUser.RefreshTokens, refreshToken)
@@ -124,7 +124,7 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 	claims, ok := token.Claims.(*CustomClaims)
 
 	if (err != nil && !errors.Is(err, jwt.ErrTokenInvalidClaims)) || !ok {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a refresh token."})
 	}
 
 	db := database.DB
@@ -132,10 +132,10 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 	findResult := db.Where("? = ANY(refresh_tokens)", refreshToken).First(&foundUser)
 	if findResult.Error != nil {
 		if findResult.Error == gorm.ErrRecordNotFound {
-			if removeTokensResult := db.First(&foundUser, "id = ?", claims.UserID).Update("refresh_tokens", "{}"); removeTokensResult.Error != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Remove tokens error"})
+			if clearTokensResult := db.First(&foundUser, "id = ?", claims.UserID).Update("refresh_tokens", "{}"); clearTokensResult.Error != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot clear tokens."})
 			}
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Reuse refresh token"})
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Reuse refresh token detected."})
 		} else {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
 		}
@@ -146,25 +146,25 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 	})
 
 	if !token.Valid {
-		if removeOldTokenResult := db.Select("refresh_tokens").Save(&foundUser); removeOldTokenResult.Error != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong"})
+		if removeTokenResult := db.Select("refresh_tokens").Save(&foundUser); removeTokenResult.Error != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot remove token from the list."})
 		}
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired."})
 	}
 
-	newAccessToken, err := generateJWTToken(claims.UserID, time.Now().Add(time.Hour*15), accessTokenKey)
+	newAccessToken, err := generateJWTToken(claims.UserID, time.Now().Add(time.Minute*15), accessTokenKey)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot generate a access token."})
 	}
 
 	newRefreshToken, err := generateJWTToken(claims.UserID, time.Now().Add(time.Hour*24*3), refreshTokenKey)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot generate a refrest token."})
 	}
 
 	foundUser.RefreshTokens = append(foundUser.RefreshTokens, newRefreshToken)
 	if updateTokenResult := db.Select("refresh_tokens").Save(&foundUser); updateTokenResult.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Update token list error."})
 	}
 
 	utils.SetCookie(c, "refreshToken", newRefreshToken, time.Now().Add(time.Hour*24))

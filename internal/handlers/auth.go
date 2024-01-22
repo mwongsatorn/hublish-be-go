@@ -162,3 +162,34 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"accessToken": newAccessToken})
 }
+
+func LogOutUser(c *fiber.Ctx) error {
+	refreshToken := c.Cookies("refreshToken")
+	if refreshToken == "" {
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+
+	utils.ClearCookie(c, "refreshToken")
+
+	token, err := jwt.ParseWithClaims(refreshToken, &types.CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(refreshTokenKey), nil
+	})
+	claims, ok := token.Claims.(*types.CustomClaims)
+	if !token.Valid || err != nil || !ok {
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+
+	db := database.DB
+	var foundUser models.User
+	findResult := db.Where("id = ? AND ? = ANY(refresh_tokens)", claims.UserID, refreshToken).First(&foundUser)
+	if findResult.Error != nil {
+		c.SendStatus(fiber.StatusNoContent)
+	}
+
+	foundUser.RefreshTokens = slices.DeleteFunc(foundUser.RefreshTokens, func(element string) bool {
+		return element == refreshToken
+	})
+	db.Select("refresh_tokens").Save(&foundUser)
+
+	return c.SendStatus(fiber.StatusNoContent)
+}

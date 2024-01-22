@@ -6,9 +6,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func AuthRoutesSetup(r fiber.Router) {
+func authRoutesSetup(r fiber.Router) {
 	authRoutes := r.Group("/api/auth")
 	authRoutes.Post("/signup", handlers.SignUpUser)
 	authRoutes.Post("/login", handlers.LogInUser)
 	authRoutes.Get("/refresh", handlers.RefreshAccessToken)
+	authRoutes.Delete("/logout", handlers.LogOutUser)
 }

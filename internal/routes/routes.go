@@ -8,5 +8,6 @@ import (
 
 func RegisterRoutes(app fiber.Router) {
 	app.Get("/", handlers.HomeHanlder)
-	AuthRoutesSetup(app)
+	authRoutesSetup(app)
+	userRouteSetup(app)
 }

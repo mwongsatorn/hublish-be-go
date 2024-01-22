@@ -3,6 +3,7 @@ package handlers
 import (
 	"hublish-be-go/internal/database"
 	"hublish-be-go/internal/models"
+	"hublish-be-go/internal/types"
 	"hublish-be-go/internal/utils"
 	"hublish-be-go/internal/validator"
 	"os"
@@ -22,16 +23,6 @@ var (
 	accessTokenKey  = os.Getenv("ACCESSTOKEN_KEY")
 	refreshTokenKey = os.Getenv("REFRESHTOKEN_KEY")
 )
-
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type CustomClaims struct {
-	jwt.RegisteredClaims
-	UserID string `json:"user_id"`
-}
 
 func SignUpUser(c *fiber.Ctx) error {
 	req := new(validator.SignUpRequest)
@@ -75,7 +66,7 @@ func SignUpUser(c *fiber.Ctx) error {
 
 func LogInUser(c *fiber.Ctx) error {
 
-	req := new(LoginRequest)
+	req := new(types.LoginRequestBody)
 
 	if err := c.BodyParser(req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a body request."})
@@ -92,12 +83,12 @@ func LogInUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username or Password is incorrect"})
 	}
 
-	accessToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Minute*15), accessTokenKey)
+	accessToken, err := utils.GenerateJWTToken(foundUser.ID, time.Now().Add(time.Minute*15), accessTokenKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot generate a access token."})
 	}
 
-	refreshToken, err := generateJWTToken(foundUser.ID, time.Now().Add(time.Hour*24), refreshTokenKey)
+	refreshToken, err := utils.GenerateJWTToken(foundUser.ID, time.Now().Add(time.Hour*24), refreshTokenKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot generate a refresh token."})
 	}
@@ -118,10 +109,10 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 	}
 	utils.ClearCookie(c, "refreshToken")
 
-	token, err := jwt.ParseWithClaims(refreshToken, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(refreshToken, &types.CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(refreshTokenKey), nil
 	})
-	claims, ok := token.Claims.(*CustomClaims)
+	claims, ok := token.Claims.(*types.CustomClaims)
 
 	if (err != nil && !errors.Is(err, jwt.ErrTokenInvalidClaims)) || !ok {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a refresh token."})
@@ -152,12 +143,12 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Token expired."})
 	}
 
-	newAccessToken, err := generateJWTToken(claims.UserID, time.Now().Add(time.Minute*15), accessTokenKey)
+	newAccessToken, err := utils.GenerateJWTToken(claims.UserID, time.Now().Add(time.Minute*15), accessTokenKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot generate a access token."})
 	}
 
-	newRefreshToken, err := generateJWTToken(claims.UserID, time.Now().Add(time.Hour*24*3), refreshTokenKey)
+	newRefreshToken, err := utils.GenerateJWTToken(claims.UserID, time.Now().Add(time.Hour*24*3), refreshTokenKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot generate a refrest token."})
 	}
@@ -170,16 +161,4 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 	utils.SetCookie(c, "refreshToken", newRefreshToken, time.Now().Add(time.Hour*24))
 
 	return c.JSON(fiber.Map{"accessToken": newAccessToken})
-}
-
-func generateJWTToken(user_id string, exp time.Time, key string) (string, error) {
-	rawToken := jwt.NewWithClaims(jwt.SigningMethodHS256, CustomClaims{
-		UserID: user_id,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(exp),
-		},
-	})
-
-	token, err := rawToken.SignedString([]byte(key))
-	return token, err
 }

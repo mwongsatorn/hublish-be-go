@@ -16,3 +16,8 @@ type UpdateProfileRequestBody struct {
 	Bio   *string `json:"bio" validate:"max=160"`
 	Image *string `json:"image"`
 }
+
+type ChangePasswordRequestBody struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}

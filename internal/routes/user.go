@@ -12,4 +12,5 @@ func userRouteSetup(r fiber.Router) {
 
 	userRoutes.Get("/current", middlewares.RequireAuth, handlers.GetCurrentUser)
 	userRoutes.Put("/settings/profile", middlewares.RequireAuth, handlers.ChangeUserProfile)
+	userRoutes.Put("/settings/password", middlewares.RequireAuth, handlers.ChangeUserPassword)
 }

@@ -25,7 +25,7 @@ var (
 )
 
 func SignUpUser(c *fiber.Ctx) error {
-	req := new(validator.SignUpRequest)
+	req := new(types.SignUpRequestBody)
 
 	if err := c.BodyParser(req); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a body request."})

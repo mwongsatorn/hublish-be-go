@@ -4,3 +4,9 @@ type LoginRequestBody struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
+
+type UpdateProfileRequestBody struct {
+	Name  *string `json:"name" validate:"max=70"`
+	Bio   *string `json:"bio" validate:"max=160"`
+	Image *string `json:"image"`
+}

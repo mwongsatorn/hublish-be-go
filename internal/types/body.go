@@ -7,11 +7,11 @@ type LoginRequestBody struct {
 
 type SignUpRequestBody struct {
 	Username string `validate:"required"`
-	Password string `validate:"required"`
+	Password string `validate:"required" validate:"min=8"`
 	Email    string `validate:"required,email"`
 }
 
-type UpdateProfileRequestBody struct {
+type ChangeProfileRequestBody struct {
 	Name  *string `json:"name" validate:"max=70"`
 	Bio   *string `json:"bio" validate:"max=160"`
 	Image *string `json:"image"`
@@ -19,5 +19,5 @@ type UpdateProfileRequestBody struct {
 
 type ChangePasswordRequestBody struct {
 	CurrentPassword string `json:"currentPassword"`
-	NewPassword     string `json:"newPassword"`
+	NewPassword     string `json:"newPassword" validate:"min=8"`
 }

@@ -25,7 +25,7 @@ func GetCurrentUser(c *fiber.Ctx) error {
 
 func ChangeUserProfile(c *fiber.Ctx) error {
 
-	profile := new(types.UpdateProfileRequestBody)
+	profile := new(types.ChangeProfileRequestBody)
 	if err := c.BodyParser(profile); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a request body."})
 	}
@@ -54,11 +54,13 @@ func ChangeUserPassword(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a request body"})
 	}
 
-	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	if err := validator.V.Struct(body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Request body is invalid."})
+	}
 
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
 	db := database.DB
 	var foundUser models.User
-
 	if findResult := db.First(&foundUser, "id = ?", loggedInUserID); findResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user."})
 	}

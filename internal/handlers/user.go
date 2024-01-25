@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+
 	"hublish-be-go/internal/database"
 	"hublish-be-go/internal/models"
 	"hublish-be-go/internal/types"
@@ -9,6 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -78,5 +81,39 @@ func ChangeUserPassword(c *fiber.Ctx) error {
 	if updateResult := db.Select("password").Save(foundUser); updateResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot update a user password."})
 	}
+	return c.JSON(foundUser)
+}
+
+func ChangeUserEmail(c *fiber.Ctx) error {
+
+	body := new(types.ChangeEmailRequestBody)
+	if err := c.BodyParser(body); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a request body"})
+	}
+
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	db := database.DB
+	var foundUser models.User
+	if findUserResult := db.First(&foundUser, "id = ?", loggedInUserID); findUserResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user."})
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(foundUser.Password), []byte(body.Password)); err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Your password does not match."})
+	}
+
+	var foundEmail models.User
+	findEmailResult := db.Where("email = ?", body.NewEmail).First(&foundEmail)
+	if findEmailResult.Error != nil && !errors.Is(findEmailResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find an email."})
+	}
+	if findEmailResult.Error == nil {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "This email is already used."})
+	}
+
+	foundUser.Email = body.NewEmail
+	if updateEmailResult := db.Select("email").Save(foundUser); updateEmailResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot update user email."})
+	}
+
 	return c.JSON(foundUser)
 }

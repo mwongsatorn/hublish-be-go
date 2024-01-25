@@ -21,3 +21,8 @@ type ChangePasswordRequestBody struct {
 	CurrentPassword string `json:"currentPassword"`
 	NewPassword     string `json:"newPassword" validate:"min=8"`
 }
+
+type ChangeEmailRequestBody struct {
+	NewEmail string `json:"newEmail"`
+	Password string `json:"password" `
+}

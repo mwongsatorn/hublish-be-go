@@ -40,28 +40,28 @@ func SignUpUser(c *fiber.Ctx) error {
 	var foundUser models.User
 	findResult := db.Where("username = ?", req.Username).Or("email = ?", req.Email).First(&foundUser)
 
+	if findResult.Error != nil && !errors.Is(findResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user."})
+	}
+
 	if findResult.Error == nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "Username or Email is already used."})
 	}
 
-	if findResult.Error == gorm.ErrRecordNotFound {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot hash a password."})
-		}
-		newUser := &models.User{
-			Username: req.Username,
-			Password: string(hashedPassword),
-			Email:    req.Email,
-		}
-
-		createResult := db.Select([]string{"Username", "Password", "Email"}).Create(newUser)
-		if createResult.Error != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create a user."})
-		}
-		return c.Status(fiber.StatusCreated).JSON(newUser)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot hash a password."})
 	}
-	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+	newUser := &models.User{
+		Username: req.Username,
+		Password: string(hashedPassword),
+		Email:    req.Email,
+	}
+	if createResult := db.Select([]string{"Username", "Password", "Email"}).Create(newUser); createResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create a user."})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(newUser)
 }
 
 func LogInUser(c *fiber.Ctx) error {

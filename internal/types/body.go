@@ -26,3 +26,9 @@ type ChangeEmailRequestBody struct {
 	NewEmail string `json:"newEmail"`
 	Password string `json:"password" `
 }
+
+type CreateArticleRequestBody struct {
+	Title   string    `json:"title" validate:"max=70"`
+	Content string    `json:"content" validate:"max=1500"`
+	Tags    *[]string `json:"tags" validate:"omitempty,dive,max=20"`
+}

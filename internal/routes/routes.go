@@ -10,4 +10,5 @@ func RegisterRoutes(app fiber.Router) {
 	app.Get("/", handlers.HomeHanlder)
 	authRoutesSetup(app)
 	userRouteSetup(app)
+	articleRouteSetup(app)
 }

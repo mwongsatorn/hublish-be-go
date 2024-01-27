@@ -9,8 +9,8 @@ type Article struct {
 	Title          string         `json:"title"`
 	Slug           string         `json:"slug" gorm:"unique;not null"`
 	Content        string         `json:"content"`
-	Tag            pq.StringArray `json:"tag" gorm:"type:text[]"`
+	Tags           pq.StringArray `json:"tags" gorm:"type:text[]"`
 	FavouriteCount uint           `json:"favouriteCount"`
 	AuthorID       string         `json:"author_id"`
-	Author         User           `gorm:"foreignKey:AuthorID"`
+	Author         User           `json:"author" gorm:"foreignKey:AuthorID"`
 }

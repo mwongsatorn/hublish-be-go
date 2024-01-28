@@ -1,5 +1,7 @@
 package types
 
+import "github.com/lib/pq"
+
 type LoginRequestBody struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -31,4 +33,11 @@ type CreateArticleRequestBody struct {
 	Title   string    `json:"title" validate:"max=70"`
 	Content string    `json:"content" validate:"max=1500"`
 	Tags    *[]string `json:"tags" validate:"omitempty,dive,max=20"`
+}
+
+type EditArticleRequestBody struct {
+	Title   *string         `json:"title" validate:"omitempty,max=70"`
+	Content *string         `json:"content" validate:"omitempty,max=1500"`
+	Tags    *pq.StringArray `json:"tags" validate:"omitempty,dive,max=20" gorm:"type:text[]"`
+	Slug    *string
 }

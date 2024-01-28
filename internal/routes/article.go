@@ -11,4 +11,5 @@ func articleRouteSetup(r fiber.Router) {
 	articleRoutes := r.Group("/api/articles")
 
 	articleRoutes.Post("/", middlewares.RequireAuth, handlers.CreateArticle)
+	articleRoutes.Put("/:slug", middlewares.RequireAuth, handlers.EditArticle)
 }

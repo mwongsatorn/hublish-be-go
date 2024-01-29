@@ -30,14 +30,14 @@ type ChangeEmailRequestBody struct {
 }
 
 type CreateArticleRequestBody struct {
-	Title   string    `json:"title" validate:"max=70"`
-	Content string    `json:"content" validate:"max=1500"`
-	Tags    *[]string `json:"tags" validate:"omitempty,dive,max=20"`
+	Title   string         `json:"title" validate:"required,max=70"`
+	Content string         `json:"content" validate:"required,max=1500"`
+	Tags    pq.StringArray `json:"tags" validate:"omitempty,dive,max=20" gorm:"type:text[];default:'{}'"`
 }
 
 type EditArticleRequestBody struct {
-	Title   *string         `json:"title" validate:"omitempty,max=70"`
-	Content *string         `json:"content" validate:"omitempty,max=1500"`
-	Tags    *pq.StringArray `json:"tags" validate:"omitempty,dive,max=20" gorm:"type:text[]"`
-	Slug    *string
+	Title   *string        `json:"title" validate:"omitempty,max=70"`
+	Content *string        `json:"content" validate:"omitempty,max=1500"`
+	Tags    pq.StringArray `json:"tags" validate:"omitempty,dive,max=20" gorm:"type:text[]"`
+	Slug    string
 }

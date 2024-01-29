@@ -26,20 +26,15 @@ func CreateArticle(c *fiber.Ctx) error {
 	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
 
 	slug := utils.GenerateSlug(body.Title)
-	var tags []string
-	if body.Tags == nil {
-		tags = []string{}
-	} else {
-		tags = *body.Tags
-	}
 
 	createdArticle := models.Article{
 		Title:    body.Title,
 		Content:  body.Content,
-		Tags:     tags,
+		Tags:     body.Tags,
 		Slug:     slug,
 		AuthorID: loggedInUserID,
 	}
+
 	db := database.DB
 	if createResult := db.Create(&createdArticle); createResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create an article."})
@@ -69,8 +64,7 @@ func EditArticle(c *fiber.Ctx) error {
 	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
 
 	if body.Title != nil {
-		body.Slug = new(string)
-		*body.Slug = utils.GenerateSlug(*body.Title)
+		body.Slug = utils.GenerateSlug(*body.Title)
 	}
 
 	var editedArticle models.Article

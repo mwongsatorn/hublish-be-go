@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"hublish-be-go/internal/database"
 	"hublish-be-go/internal/models"
 	"hublish-be-go/internal/types"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -88,4 +90,29 @@ func EditArticle(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(res)
+
+}
+
+func GetArticle(c *fiber.Ctx) error {
+
+	articleSlug := c.Params("slug")
+
+	var foundArticle types.ArticleQuery
+	db := database.DB
+	findArticleResult := db.
+		Table("articles AS a").
+		Select([]string{"a.*", "u.id", "u.username", "u.name", "u.bio", "u.image"}).
+		Joins("JOIN users u ON u.id = a.author_id").
+		Where("a.slug = ?", articleSlug).
+		Take(&foundArticle)
+
+	if findArticleResult.Error != nil && !errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find an article."})
+	}
+
+	if errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No article found."})
+	}
+
+	return c.JSON(foundArticle)
 }

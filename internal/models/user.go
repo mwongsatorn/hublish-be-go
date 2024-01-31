@@ -3,7 +3,7 @@ package models
 import "github.com/lib/pq"
 
 type User struct {
-	CommonFields   `gorm:"embeded"`
+	CommonFields
 	Username       string         `json:"username" gorm:"not null;unique"`
 	Password       string         `json:"-"`
 	Email          string         `json:"email" gorm:"not null;unique"`

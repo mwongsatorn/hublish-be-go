@@ -116,3 +116,22 @@ func GetArticle(c *fiber.Ctx) error {
 
 	return c.JSON(foundArticle)
 }
+
+func DeleteArticle(c *fiber.Ctx) error {
+
+	articleSlug := c.Params("slug")
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+
+	db := database.DB
+	deleteResult := db.Where("slug = ? AND author_id = ?", articleSlug, loggedInUserID).Delete(&models.Article{})
+
+	if deleteResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot delete an article."})
+	}
+
+	if deleteResult.RowsAffected == 0 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No article found."})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}

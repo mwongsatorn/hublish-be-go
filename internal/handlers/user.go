@@ -117,3 +117,64 @@ func ChangeUserEmail(c *fiber.Ctx) error {
 
 	return c.JSON(foundUser)
 }
+
+func FollowUser(c *fiber.Ctx) error {
+
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	targetUsername := c.Params("username")
+
+	db := database.DB
+	var userToFollow models.User
+	findTargetUserResult := db.First(&userToFollow, "username = ?", targetUsername)
+	if findTargetUserResult.Error != nil && !errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user."})
+	}
+	if errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No user found."})
+	}
+	if loggedInUserID == userToFollow.ID {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "You cannot follow yourself."})
+	}
+
+	isFollowingResult := db.
+		Where(models.Follow{FollowingID: userToFollow.ID, FollowerID: loggedInUserID}).
+		First(&models.Follow{})
+	if isFollowingResult.Error != nil && !errors.Is(isFollowingResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a follow relation."})
+	}
+	if isFollowingResult.RowsAffected != 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "You've already followed this user."})
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+
+		if followResult := tx.Create(&models.Follow{
+			FollowingID: userToFollow.ID,
+			FollowerID:  loggedInUserID,
+		}); followResult.Error != nil {
+			return errors.New("Cannot follow a user: Error on create follow relation.")
+		}
+
+		if updateLoggedInUserResult := tx.Model(&models.User{}).
+			Where("id = ?", loggedInUserID).
+			Updates(map[string]interface{}{
+				"following_count": gorm.Expr("following_count + 1"),
+			}); updateLoggedInUserResult.Error != nil {
+			return errors.New("Cannot follow a user: Error on update a logged-in user.")
+		}
+
+		userToFollow.FollowerCount += 1
+		if updateTargetUserResult := tx.Select("follower_count").
+			Save(userToFollow); updateTargetUserResult.Error != nil {
+			return errors.New("Cannot follow a user: Error on update a target user.")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(userToFollow)
+}

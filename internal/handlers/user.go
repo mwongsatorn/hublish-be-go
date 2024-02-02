@@ -178,3 +178,64 @@ func FollowUser(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(userToFollow)
 }
+
+func UnfollowUser(c *fiber.Ctx) error {
+
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	targetUsername := c.Params("username")
+
+	db := database.DB
+	var userToUnfollow models.User
+	findTargetUserResult := db.First(&userToUnfollow, "username = ?", targetUsername)
+	if findTargetUserResult.Error != nil && !errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user."})
+	}
+	if errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No user found."})
+	}
+	if loggedInUserID == userToUnfollow.ID {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "You cannot unfollow yourself."})
+	}
+
+	isFollowingResult := db.
+		Where(models.Follow{FollowingID: userToUnfollow.ID, FollowerID: loggedInUserID}).
+		First(&models.Follow{})
+	if isFollowingResult.Error != nil && !errors.Is(isFollowingResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a follow relation."})
+	}
+	if isFollowingResult.RowsAffected == 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "You haven't followed this user yet."})
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+
+		if unfollowResult := tx.
+			Where("follower_id = ? AND following_id = ?", loggedInUserID, userToUnfollow.ID).
+			Delete(&models.Follow{}); unfollowResult.Error != nil {
+			return errors.New("Cannot follow a user: Error on delete follow relation.")
+		}
+
+		if updateLoggedInUserResult := tx.Model(&models.User{}).
+			Where("id = ?", loggedInUserID).
+			Updates(map[string]interface{}{
+				"following_count": gorm.Expr("following_count - 1"),
+			}); updateLoggedInUserResult.Error != nil {
+			return errors.New("Cannot follow a user: Error on update a logged-in user.")
+		}
+
+		userToUnfollow.FollowerCount -= 1
+		if updateTargetUserResult := tx.Select("follower_count").
+			Save(userToUnfollow); updateTargetUserResult.Error != nil {
+			return errors.New("Cannot follow a user: Error on update a target user.")
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(userToUnfollow)
+
+}

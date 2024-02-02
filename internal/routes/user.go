@@ -16,4 +16,5 @@ func userRouteSetup(r fiber.Router) {
 	userRoutes.Put("/settings/email", middlewares.RequireAuth, handlers.ChangeUserEmail)
 
 	userRoutes.Post("/:username/follow", middlewares.RequireAuth, handlers.FollowUser)
+	userRoutes.Delete("/:username/follow", middlewares.RequireAuth, handlers.UnfollowUser)
 }

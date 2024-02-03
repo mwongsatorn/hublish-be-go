@@ -19,4 +19,5 @@ func userRouteSetup(r fiber.Router) {
 	userRoutes.Delete("/:username/follow", middlewares.RequireAuth, handlers.UnfollowUser)
 
 	userRoutes.Get("/:username/followers", middlewares.IsLoggedIn, handlers.GetUserFollowers)
+	userRoutes.Get("/:username/followings", middlewares.IsLoggedIn, handlers.GetUserFollowings)
 }

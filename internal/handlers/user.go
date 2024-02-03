@@ -239,3 +239,35 @@ func UnfollowUser(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(userToUnfollow)
 
 }
+
+func GetUserFollowers(c *fiber.Ctx) error {
+
+	loggedInUserID := "00000000-0000-0000-0000-000000000000"
+	targetUsername := c.Params("username")
+	if c.Locals("isLoggedIn") == true {
+		loggedInUserID = c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	}
+
+	var targetUser models.User
+	db := database.DB
+	findTargetUserResult := db.Where("username = ?", targetUsername).First(&targetUser)
+	if findTargetUserResult.Error != nil && !errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user."})
+	}
+	if errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No user found."})
+	}
+
+	var userFollowers []types.ShortUserQuery
+	if findUserFollowersResult := db.Table("follows f").
+		Select([]string{"u.id", "u.username", "u.bio", "u.image", 
+		"CASE WHEN f_log.following_id IS NOT NULL THEN true ELSE false END AS followed"}).
+		Joins("JOIN users u ON u.id = f.follower_id").
+		Joins("LEFT JOIN follows f_log ON f_log.follower_id = f.follower_id AND f_log.following_id = ?", loggedInUserID).
+		Where("f.following_id = ?", targetUser.ID).
+		Find(&userFollowers); findUserFollowersResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find user followers."})
+	}
+
+	return c.JSON(userFollowers)
+}

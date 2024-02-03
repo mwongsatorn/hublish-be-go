@@ -25,3 +25,11 @@ type ArticleQuery struct {
 		Image    string `json:"image"`
 	} `json:"author" gorm:"embedded"`
 }
+
+type ShortUserQuery struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Bio      string `json:"bio"`
+	Image    string `json:"image"`
+	Followed bool   `json:"followed"`
+}

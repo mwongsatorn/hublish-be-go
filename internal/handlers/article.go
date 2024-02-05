@@ -135,3 +135,59 @@ func DeleteArticle(c *fiber.Ctx) error {
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
+
+func FavouriteArticle(c *fiber.Ctx) error {
+
+	articleSlug := c.Params("slug")
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+
+	db := database.DB
+	var foundArticle models.Article
+	findArticleResult := db.Where("slug = ?", articleSlug).First(&foundArticle)
+	if findArticleResult.Error != nil && !errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find an article."})
+	}
+	if errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No article found."})
+	}
+
+	findFavouriteResult := db.Where("user_id = ? AND article_id = ?", loggedInUserID, foundArticle.ID).First(&models.Favourite{})
+	if findFavouriteResult.Error != nil && !errors.Is(findFavouriteResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a favourite relation."})
+	}
+
+	if findFavouriteResult.RowsAffected > 0 {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "You've already favourited this article."})
+	}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+
+		newFavouriteRelation := models.Favourite{
+			ArticleID: foundArticle.ID,
+			UserID:    loggedInUserID,
+		}
+		if createFavouriteRelationResult := tx.Create(&newFavouriteRelation); createFavouriteRelationResult.Error != nil {
+			return errors.New("Cannot favourite this article: Error on create favourite relation.")
+		}
+
+		foundArticle.FavouriteCount += 1
+		if updateArticleResult := tx.Select("favourite_count").
+			Save(&foundArticle); updateArticleResult.Error != nil {
+			return errors.New("Cannot favourite this article: Error on update article's favourite count.")
+		}
+
+		return nil
+
+	})
+
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	res, err := utils.ResponseOmitFilter(foundArticle, []string{"author"})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot make a response object."})
+	}
+
+	return c.JSON(res)
+}

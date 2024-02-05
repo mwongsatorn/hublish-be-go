@@ -14,7 +14,7 @@ type CommonFields struct {
 }
 
 func SetDatabaseModel(db *gorm.DB) {
-	err := db.AutoMigrate(&User{}, &Article{}, &Follow{}, &Favourite{})
+	err := db.AutoMigrate(&User{}, &Article{}, &Follow{}, &Favourite{}, &Comment{})
 	if err != nil {
 		log.Fatal(err)
 	}

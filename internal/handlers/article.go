@@ -284,3 +284,39 @@ func AddComment(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusCreated).JSON(res)
 }
+
+func DeleteComment(c *fiber.Ctx) error {
+
+	articleSlug := c.Params("slug")
+	commentID := c.Params("comment_id")
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+
+	db := database.DB
+	var foundArticle models.Article
+	findArticleResult := db.Where("slug = ?", articleSlug).First(&foundArticle)
+	if findArticleResult.Error != nil && !errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find an article."})
+	}
+	if errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No article found."})
+	}
+
+	var foundComment models.Comment
+	findCommentResult := db.Where("id = ? AND \"commentAuthor_id\" = ?", commentID, loggedInUserID).First(&foundComment)
+	if findCommentResult.Error != nil && !errors.Is(findCommentResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a comment"})
+	}
+	if errors.Is(findCommentResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No comment found."})
+	}
+
+	if deleteCommentResult := db.Delete(&models.Comment{
+		CommonFields:    models.CommonFields{ID: foundComment.ID},
+		CommentAuthorID: loggedInUserID,
+		ArticleID:       foundArticle.ID,
+	}); deleteCommentResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot delete a comment"})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}

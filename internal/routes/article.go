@@ -19,4 +19,5 @@ func articleRouteSetup(r fiber.Router) {
 	articleRoutes.Delete("/:slug/favourite", middlewares.RequireAuth, handlers.UnfavouriteArticle)
 
 	articleRoutes.Post("/:slug/comments", middlewares.RequireAuth, handlers.AddComment)
+	articleRoutes.Delete("/:slug/comments/:comment_id", middlewares.RequireAuth, handlers.DeleteComment)
 }

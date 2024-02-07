@@ -320,3 +320,30 @@ func DeleteComment(c *fiber.Ctx) error {
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
+
+func GetComments(c *fiber.Ctx) error {
+
+	articleSlug := c.Params("slug")
+
+	db := database.DB
+	var foundArticle models.Article
+	findArticleResult := db.Where("slug = ?", articleSlug).First(&foundArticle)
+	if findArticleResult.Error != nil && !errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find an article."})
+	}
+	if errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No article found."})
+	}
+
+	var comments []types.CommentQuery
+	if findCommentsResult := db.Table("comments c").
+		Select([]string{"c.*", "u.id as caid", "u.username", "u.name", "u.image"}).
+		Joins("JOIN users u ON \"commentAuthor_id\" = u.id").
+		Where("c.article_id = ?", foundArticle.ID).
+		Find(&comments); findCommentsResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find comments"})
+	}
+
+	return c.JSON(comments)
+
+}

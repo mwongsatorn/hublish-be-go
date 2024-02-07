@@ -33,3 +33,16 @@ type ShortUserQuery struct {
 	Image    string `json:"image"`
 	Followed bool   `json:"followed"`
 }
+
+type CommentQuery struct {
+	ID              string `json:"id"`
+	Body            string `json:"body"`
+	CommentAuthorID string `json:"commentAuthor_id" gorm:"column:commentAuthor_id"`
+	ArticleID       string `json:"article_id"`
+	CommentAuthor   struct {
+		Caid    string `json:"id"`
+		Username string `json:"username"`
+		Name     string `json:"name"`
+		Image    string `json:"image"`
+	} `json:"commentAuthor" gorm:"embedded"`
+}

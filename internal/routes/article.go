@@ -20,4 +20,6 @@ func articleRouteSetup(r fiber.Router) {
 
 	articleRoutes.Post("/:slug/comments", middlewares.RequireAuth, handlers.AddComment)
 	articleRoutes.Delete("/:slug/comments/:comment_id", middlewares.RequireAuth, handlers.DeleteComment)
+
+	articleRoutes.Get("/:slug/comments", handlers.GetComments)
 }

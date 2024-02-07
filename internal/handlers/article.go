@@ -244,3 +244,43 @@ func UnfavouriteArticle(c *fiber.Ctx) error {
 
 	return c.JSON(res)
 }
+
+func AddComment(c *fiber.Ctx) error {
+
+	articleSlug := c.Params("slug")
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+
+	req := new(types.AddCommentRequestBody)
+	if err := c.BodyParser(req); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot parse a body request."})
+	}
+	if err := validator.V.Struct(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Comment is not valid."})
+	}
+
+	db := database.DB
+	var foundArticle models.Article
+	findArticleResult := db.Where("slug = ?", articleSlug).First(&foundArticle)
+	if findArticleResult.Error != nil && !errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find an article."})
+	}
+	if errors.Is(findArticleResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No article found."})
+	}
+
+	newComment := models.Comment{
+		Body:            req.Body,
+		CommentAuthorID: loggedInUserID,
+		ArticleID:       foundArticle.ID,
+	}
+	if addCommentResult := db.Create(&newComment); addCommentResult.Error != nil {
+		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create a comment."})
+	}
+
+	res, err := utils.ResponseOmitFilter(newComment, []string{"article", "user"})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot make a response object."})
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(res)
+}

@@ -41,3 +41,7 @@ type EditArticleRequestBody struct {
 	Tags    pq.StringArray `json:"tags" validate:"omitempty,dive,max=20" gorm:"type:text[]"`
 	Slug    string
 }
+
+type AddCommentRequestBody struct {
+	Body string `json:"body" validate:"required,max=500"`
+}

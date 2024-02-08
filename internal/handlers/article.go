@@ -96,13 +96,19 @@ func EditArticle(c *fiber.Ctx) error {
 func GetArticle(c *fiber.Ctx) error {
 
 	articleSlug := c.Params("slug")
+	loggedInUserID := "00000000-0000-0000-0000-000000000000"
+	if c.Locals("isLoggedIn") == true {
+		loggedInUserID = c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	}
 
 	var foundArticle types.ArticleQuery
 	db := database.DB
 	findArticleResult := db.
 		Table("articles AS a").
-		Select([]string{"a.*", "u.id", "u.username", "u.name", "u.bio", "u.image"}).
+		Select([]string{"a.*", "u.id as aid", "u.username", "u.name", "u.bio", "u.image",
+			"CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS favourited"}).
 		Joins("JOIN users u ON u.id = a.author_id").
+		Joins("LEFT JOIN favourites f ON f.article_id = a.id AND f.user_id = ?", loggedInUserID).
 		Where("a.slug = ?", articleSlug).
 		Take(&foundArticle)
 

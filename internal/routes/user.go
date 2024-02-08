@@ -10,6 +10,8 @@ import (
 func userRouteSetup(r fiber.Router) {
 	userRoutes := r.Group("/api/users")
 
+	userRoutes.Get("/", middlewares.IsLoggedIn, handlers.SearchUsers)
+
 	userRoutes.Get("/current", middlewares.RequireAuth, handlers.GetCurrentUser)
 	userRoutes.Get("/:username/profile", middlewares.IsLoggedIn, handlers.GetUserProfile)
 

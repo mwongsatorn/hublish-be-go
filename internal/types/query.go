@@ -30,6 +30,7 @@ type ArticleQuery struct {
 type ShortUserQuery struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
+	Name     string `json:"name"`
 	Bio      string `json:"bio"`
 	Image    string `json:"image"`
 	Followed bool   `json:"followed"`
@@ -51,4 +52,11 @@ type CommentQuery struct {
 		Name     string `json:"name"`
 		Image    string `json:"image"`
 	} `json:"commentAuthor" gorm:"embedded"`
+}
+
+type SearchQuery[T any] struct {
+	TotalResults int `json:"total_results"`
+	TotalPages   int `json:"total_pages"`
+	Page         int `json:"page"`
+	Results      []T `json:"results"`
 }

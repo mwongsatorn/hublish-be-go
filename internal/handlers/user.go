@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"strconv"
 
 	"hublish-be-go/internal/database"
 	"hublish-be-go/internal/models"
@@ -332,4 +333,51 @@ func GetUserFollowings(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(userFollowings)
+}
+
+func SearchUsers(c *fiber.Ctx) error {
+
+	loggedInUserID := "00000000-0000-0000-0000-000000000000"
+	if c.Locals("isLoggedIn") == true {
+		loggedInUserID = c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	}
+
+	query := c.Query("query")
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
+	}
+	limit, err := strconv.Atoi(c.Query("limit", "10"))
+	if err != nil || limit <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
+	}
+
+	db := database.DB
+
+	sqlQuery := "%" + query + "%"
+	var totalResults int64
+	if countTotalResults := db.Model(&models.User{}).Where("username LIKE ? OR name LIKE ?", sqlQuery, sqlQuery).
+		Count(&totalResults); countTotalResults.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot count total results."})
+	}
+
+	var foundUsers []types.ShortUserQuery
+	if findUsersResult := db.Table("users u").
+		Select([]string{"u.id", "u.username", "u.name", "u.bio", "u.image",
+			"CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS followed"}).
+		Joins("LEFT JOIN follows f ON f.following_id = u.id AND f.follower_id = ?", loggedInUserID).
+		Where("username LIKE ? OR name LIKE ?", sqlQuery, sqlQuery).
+		Offset(limit * (page - 1)).
+		Limit(limit).Find(&foundUsers); findUsersResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find Users."})
+	}
+
+	res := types.SearchQuery[types.ShortUserQuery]{
+		TotalResults: int(totalResults),
+		TotalPages:   (int(totalResults) + limit - 1) / limit,
+		Page:         page,
+		Results:      foundUsers,
+	}
+
+	return c.JSON(res)
 }

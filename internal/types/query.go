@@ -1,6 +1,7 @@
 package types
 
 import (
+	"hublish-be-go/internal/models"
 	"time"
 
 	"github.com/lib/pq"
@@ -34,13 +35,18 @@ type ShortUserQuery struct {
 	Followed bool   `json:"followed"`
 }
 
+type UserQuery struct {
+	models.User
+	Followed bool `json:"followed"`
+}
+
 type CommentQuery struct {
 	ID              string `json:"id"`
 	Body            string `json:"body"`
 	CommentAuthorID string `json:"commentAuthor_id" gorm:"column:commentAuthor_id"`
 	ArticleID       string `json:"article_id"`
 	CommentAuthor   struct {
-		Caid    string `json:"id"`
+		Caid     string `json:"id"`
 		Username string `json:"username"`
 		Name     string `json:"name"`
 		Image    string `json:"image"`

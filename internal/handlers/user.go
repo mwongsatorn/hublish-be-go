@@ -26,6 +26,36 @@ func GetCurrentUser(c *fiber.Ctx) error {
 	return c.JSON(foundUser)
 }
 
+func GetUserProfile(c *fiber.Ctx) error {
+
+	loggedInUserID := "00000000-0000-0000-0000-000000000000"
+	targetUsername := c.Params("username")
+	if c.Locals("isLoggedIn") == true {
+		loggedInUserID = c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	}
+
+	var targetUser models.User
+	db := database.DB
+	findTargetUserResult := db.Where("username = ?", targetUsername).First(&targetUser)
+	if findTargetUserResult.Error != nil && !errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user."})
+	}
+	if errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No user found."})
+	}
+
+	var userProfile types.UserQuery
+	if findUserProfileResult := db.Table("users u").
+		Select([]string{"u.*", "CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS followed"}).
+		Joins("LEFT JOIN follows f on f.following_id = u.id AND f.follower_id = ?", loggedInUserID).
+		Where("u.username = ?", targetUser.Username).
+		First(&userProfile); findUserProfileResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user profile"})
+	}
+
+	return c.JSON(userProfile)
+}
+
 func ChangeUserProfile(c *fiber.Ctx) error {
 
 	profile := new(types.ChangeProfileRequestBody)

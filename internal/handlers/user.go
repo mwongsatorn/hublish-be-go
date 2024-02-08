@@ -291,7 +291,7 @@ func GetUserFollowers(c *fiber.Ctx) error {
 
 	var userFollowers []types.ShortUserQuery
 	if findUserFollowersResult := db.Table("follows f").
-		Select([]string{"u.id", "u.username", "u.bio", "u.image",
+		Select([]string{"u.id", "u.username", "u.name", "u.bio", "u.image",
 			"CASE WHEN f_log.id IS NOT NULL THEN true ELSE false END AS followed"}).
 		Joins("JOIN users u ON u.id = f.follower_id").
 		Joins("LEFT JOIN follows f_log ON f_log.following_id = f.follower_id AND f_log.follower_id = ?", loggedInUserID).
@@ -323,7 +323,7 @@ func GetUserFollowings(c *fiber.Ctx) error {
 
 	var userFollowings []types.ShortUserQuery
 	if findUserFollowingsResult := db.Table("follows f").
-		Select([]string{"u.id", "u.username", "u.bio", "u.image",
+		Select([]string{"u.id", "u.username", "u.name", "u.bio", "u.image",
 			"CASE WHEN f_log.id IS NOT NULL THEN true ELSE false END AS followed"}).
 		Joins("JOIN users u ON u.id = f.following_id").
 		Joins("LEFT JOIN follows f_log ON f_log.following_id = f.following_id AND f_log.follower_id = ?", loggedInUserID).

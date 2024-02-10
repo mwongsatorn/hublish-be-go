@@ -385,3 +385,36 @@ func GetUserCreatedArticle(c *fiber.Ctx) error {
 
 	return c.JSON(createdArticles)
 }
+
+func GetUserFavouriteArticle(c *fiber.Ctx) error {
+
+	loggedInUserID := "00000000-0000-0000-0000-000000000000"
+	targetUsername := c.Params("username")
+	if c.Locals("isLoggedIn") == true {
+		loggedInUserID = c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	}
+
+	var targetUser models.User
+	db := database.DB
+	findTargetUserResult := db.Where("username = ?", targetUsername).First(&targetUser)
+	if findTargetUserResult.Error != nil && !errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user."})
+	}
+	if errors.Is(findTargetUserResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No user found."})
+	}
+
+	var favouriteArticles []types.ArticleQuery
+	if findFavouriteArticlesResult := db.Table("articles a").
+		Select([]string{"a.*", "u.id as aid", "u.username", "u.name", "u.bio", "u.image",
+			"CASE WHEN f2.id IS NOT NULL THEN true ELSE false END AS favourited"}).
+		Joins("JOIN users u ON a.author_id = u.id").
+		Joins("JOIN favourites f1 ON f1.article_id = a.id AND f1.user_id = ?", targetUser.ID).
+		Joins("LEFT JOIN favourites f2 ON f2.article_id = a.id AND f2.user_id = ?", loggedInUserID).
+		Find(&favouriteArticles); findFavouriteArticlesResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find favourite articles."})
+	}
+
+	return c.JSON(favouriteArticles)
+
+}

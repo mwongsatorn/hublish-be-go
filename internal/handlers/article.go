@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"errors"
+	"strconv"
+
 	"hublish-be-go/internal/database"
 	"hublish-be-go/internal/models"
 	"hublish-be-go/internal/types"
@@ -437,5 +439,64 @@ func GetUserFeedArticles(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(feedArticles)
+
+}
+
+func SearchArticles(c *fiber.Ctx) error {
+
+	loggedInUserID := "00000000-0000-0000-0000-000000000000"
+	if c.Locals("isLoggedIn") == true {
+		loggedInUserID = c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+	}
+
+	title := c.Query("title")
+	tags := c.Query("tags")
+	if title == "" && tags == "" {
+		return c.JSON(types.SearchQuery[any]{Results: []any{}})
+	}
+
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
+	}
+	limit, err := strconv.Atoi(c.Query("limit", "10"))
+	if err != nil || limit <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
+	}
+
+	db := database.DB
+	db = db.Table("articles a")
+	if title != "" {
+		db = db.Where("a.title ILIKE ?", "%"+title+"%")
+	}
+	if tags != "" {
+		db = db.Or("EXISTS (SELECT 1 FROM UNNEST(a.tags) AS E WHERE E ILIKE ?)", "%"+tags+"%")
+	}
+
+	var totalResults int64
+	if countTotalResults := db.Count(&totalResults); countTotalResults.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot count total results."})
+	}
+
+	var foundArticles []types.ArticleQuery
+	if findArticlesResult := db.
+		Select([]string{"a.*", "u.id as aid", "u.username", "u.name", "u.bio", "u.image",
+			"CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS favourited"}).
+		Joins("JOIN users u ON a.author_id = u.id").
+		Joins("LEFT JOIN favourites f ON f.article_id = a.id AND f.user_id = ?", loggedInUserID).
+		Offset(limit * (page - 1)).
+		Limit(limit).
+		Find(&foundArticles); findArticlesResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find articles."})
+	}
+
+	res := types.SearchQuery[types.ArticleQuery]{
+		TotalResults: int(totalResults),
+		TotalPages:   (int(totalResults) + limit - 1) / limit,
+		Page:         page,
+		Results:      foundArticles,
+	}
+
+	return c.JSON(res)
 
 }

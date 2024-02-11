@@ -354,7 +354,7 @@ func GetComments(c *fiber.Ctx) error {
 
 }
 
-func GetUserCreatedArticle(c *fiber.Ctx) error {
+func GetUserCreatedArticles(c *fiber.Ctx) error {
 
 	loggedInUserID := "00000000-0000-0000-0000-000000000000"
 	targetUsername := c.Params("username")
@@ -386,7 +386,7 @@ func GetUserCreatedArticle(c *fiber.Ctx) error {
 	return c.JSON(createdArticles)
 }
 
-func GetUserFavouriteArticle(c *fiber.Ctx) error {
+func GetUserFavouriteArticles(c *fiber.Ctx) error {
 
 	loggedInUserID := "00000000-0000-0000-0000-000000000000"
 	targetUsername := c.Params("username")
@@ -416,5 +416,26 @@ func GetUserFavouriteArticle(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(favouriteArticles)
+
+}
+
+func GetUserFeedArticles(c *fiber.Ctx) error {
+
+	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
+
+	var feedArticles []types.ArticleQuery
+	db := database.DB
+	if findFeedArticlesResult := db.Table("articles a").
+		Select([]string{"a.*", "u.id as aid", "u.username", "u.name", "u.bio", "u.image",
+			"CASE WHEN f2.id IS NOT NULL THEN true ELSE false END AS favourited"}).
+		Joins("JOIN users u ON a.author_id = u.id").
+		Joins("JOIN follows f1 ON f1.following_id = a.author_id AND f1.follower_id = ?", loggedInUserID).
+		Joins("LEFT JOIN favourites f2 ON f2.article_id = a.id AND f2.user_id = ?", loggedInUserID).
+		Order("a.created_at DESC").
+		Find(&feedArticles); findFeedArticlesResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find favourite articles."})
+	}
+
+	return c.JSON(feedArticles)
 
 }

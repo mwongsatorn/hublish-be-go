@@ -23,6 +23,7 @@ func articleRouteSetup(r fiber.Router) {
 
 	articleRoutes.Get("/:slug/comments", handlers.GetComments)
 
-	articleRoutes.Get("/:username/created", middlewares.IsLoggedIn, handlers.GetUserCreatedArticle)
-	articleRoutes.Get("/:username/favourite", middlewares.IsLoggedIn, handlers.GetUserFavouriteArticle)
+	articleRoutes.Get("/:username/created", middlewares.IsLoggedIn, handlers.GetUserCreatedArticles)
+	articleRoutes.Get("/:username/favourite", middlewares.IsLoggedIn, handlers.GetUserFavouriteArticles)
+	articleRoutes.Get("/:username/feed", middlewares.RequireAuth, handlers.GetUserFeedArticles)
 }

@@ -104,6 +104,7 @@ func LogInUser(c *fiber.Ctx) error {
 func RefreshAccessToken(c *fiber.Ctx) error {
 
 	refreshToken := c.Cookies("refreshToken")
+
 	if refreshToken == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Refresh token required"})
 	}
@@ -120,16 +121,15 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 
 	db := database.DB
 	var foundUser models.User
-	findResult := db.Where("? = ANY(refresh_tokens)", refreshToken).First(&foundUser)
-	if findResult.Error != nil {
-		if findResult.Error == gorm.ErrRecordNotFound {
-			if clearTokensResult := db.First(&foundUser, "id = ?", claims.UserID).Update("refresh_tokens", "{}"); clearTokensResult.Error != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot clear tokens."})
-			}
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Reuse refresh token detected."})
-		} else {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+	findResult := db.Where("? = ANY(refresh_tokens) AND id = ?", refreshToken, claims.UserID).First(&foundUser)
+	if findResult.Error != nil && !errors.Is(findResult.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Something went wrong."})
+	}
+	if errors.Is(findResult.Error, gorm.ErrRecordNotFound) {
+		if clearTokensResult := db.Model(&models.User{}).Where("id = ?", claims.UserID).Update("refresh_tokens", "{}"); clearTokensResult.Error != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot clear tokens."})
 		}
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Reuse refresh token detected."})
 	}
 
 	foundUser.RefreshTokens = slices.DeleteFunc(foundUser.RefreshTokens, func(element string) bool {
@@ -164,12 +164,12 @@ func RefreshAccessToken(c *fiber.Ctx) error {
 }
 
 func LogOutUser(c *fiber.Ctx) error {
+
 	refreshToken := c.Cookies("refreshToken")
+	utils.ClearCookie(c, "refreshToken")
 	if refreshToken == "" {
 		return c.SendStatus(fiber.StatusNoContent)
 	}
-
-	utils.ClearCookie(c, "refreshToken")
 
 	token, err := jwt.ParseWithClaims(refreshToken, &types.CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(refreshTokenKey), nil

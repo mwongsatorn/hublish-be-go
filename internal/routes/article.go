@@ -13,6 +13,8 @@ func articleRouteSetup(r fiber.Router) {
 	articleRoutes.Get("/", middlewares.IsLoggedIn, handlers.SearchArticles)
 	articleRoutes.Post("/", middlewares.RequireAuth, handlers.CreateArticle)
 
+	articleRoutes.Get("/feed", middlewares.RequireAuth, handlers.GetUserFeedArticles)
+
 	articleRoutes.Get("/:slug", middlewares.IsLoggedIn, handlers.GetArticle)
 	articleRoutes.Put("/:slug", middlewares.RequireAuth, handlers.EditArticle)
 	articleRoutes.Delete("/:slug", middlewares.RequireAuth, handlers.DeleteArticle)
@@ -27,5 +29,4 @@ func articleRouteSetup(r fiber.Router) {
 
 	articleRoutes.Get("/:username/created", middlewares.IsLoggedIn, handlers.GetUserCreatedArticles)
 	articleRoutes.Get("/:username/favourite", middlewares.IsLoggedIn, handlers.GetUserFavouriteArticles)
-	articleRoutes.Get("/:username/feed", middlewares.RequireAuth, handlers.GetUserFeedArticles)
 }

@@ -54,10 +54,13 @@ func SignUpUser(c *fiber.Ctx) error {
 	}
 	newUser := &models.User{
 		Username: req.Username,
+		Name:     req.Username,
 		Password: string(hashedPassword),
 		Email:    req.Email,
 	}
-	if createResult := db.Select([]string{"Username", "Password", "Email"}).Create(newUser); createResult.Error != nil {
+	if createResult := db.
+		Select([]string{"Username", "Name", "Password", "Email"}).
+		Create(newUser); createResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create a user."})
 	}
 

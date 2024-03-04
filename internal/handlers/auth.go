@@ -98,7 +98,14 @@ func LogInUser(c *fiber.Ctx) error {
 
 	utils.SetCookie(c, "refreshToken", refreshToken, time.Now().Add(time.Hour*24))
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"accessToken": accessToken})
+	loginRes := struct {
+		models.User
+		AccessToken string `json:"accessToken"`
+	}{
+		foundUser,
+		accessToken,
+	}
+	return c.Status(fiber.StatusOK).JSON(loginRes)
 }
 
 func RefreshAccessToken(c *fiber.Ctx) error {

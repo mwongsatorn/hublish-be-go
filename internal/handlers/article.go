@@ -381,6 +381,7 @@ func GetUserCreatedArticles(c *fiber.Ctx) error {
 		Joins("JOIN users u ON a.author_id = u.id").
 		Joins("LEFT JOIN favourites f ON f.article_id = a.id AND f.user_id = ?", loggedInUserID).
 		Where("author_id = ?", targetUser.ID).
+		Order("a.created_at DESC").
 		Find(&createdArticles); findCreatedArticlesResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find created articles."})
 	}
@@ -413,6 +414,7 @@ func GetUserFavouriteArticles(c *fiber.Ctx) error {
 		Joins("JOIN users u ON a.author_id = u.id").
 		Joins("JOIN favourites f1 ON f1.article_id = a.id AND f1.user_id = ?", targetUser.ID).
 		Joins("LEFT JOIN favourites f2 ON f2.article_id = a.id AND f2.user_id = ?", loggedInUserID).
+		Order("f1.created_at DESC").
 		Find(&favouriteArticles); findFavouriteArticlesResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find favourite articles."})
 	}
@@ -435,7 +437,7 @@ func GetUserFeedArticles(c *fiber.Ctx) error {
 		Joins("LEFT JOIN favourites f2 ON f2.article_id = a.id AND f2.user_id = ?", loggedInUserID).
 		Order("a.created_at DESC").
 		Find(&feedArticles); findFeedArticlesResult.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find favourite articles."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find feed articles."})
 	}
 
 	return c.JSON(feedArticles)
@@ -451,9 +453,6 @@ func SearchArticles(c *fiber.Ctx) error {
 
 	title := c.Query("title")
 	tags := c.Query("tags")
-	if title == "" && tags == "" {
-		return c.JSON(types.SearchQuery[any]{Results: []any{}})
-	}
 
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil {
@@ -486,6 +485,7 @@ func SearchArticles(c *fiber.Ctx) error {
 		Joins("LEFT JOIN favourites f ON f.article_id = a.id AND f.user_id = ?", loggedInUserID).
 		Offset(limit * (page - 1)).
 		Limit(limit).
+		Order("created_at DESC").
 		Find(&foundArticles); findArticlesResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find articles."})
 	}

@@ -13,8 +13,8 @@ type ArticleQuery struct {
 	Slug           string         `json:"slug"`
 	Content        string         `json:"content"`
 	Tags           pq.StringArray `json:"tags" gorm:"type:text[]"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
+	CreatedAt      time.Time      `json:"createdAt"`
+	UpdatedAt      time.Time      `json:"updatedAt"`
 	AuthorID       string         `json:"author_id"`
 	FavouriteCount int            `json:"favouriteCount"`
 	Favourited     bool           `json:"favourited"`
@@ -42,10 +42,12 @@ type UserQuery struct {
 }
 
 type CommentQuery struct {
-	ID              string `json:"id"`
-	Body            string `json:"body"`
-	CommentAuthorID string `json:"commentAuthor_id" gorm:"column:commentAuthor_id"`
-	ArticleID       string `json:"article_id"`
+	ID              string    `json:"id"`
+	Body            string    `json:"body"`
+	CommentAuthorID string    `json:"commentAuthor_id" gorm:"column:commentAuthor_id"`
+	ArticleID       string    `json:"article_id"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 	CommentAuthor   struct {
 		Caid     string `json:"id"`
 		Username string `json:"username"`

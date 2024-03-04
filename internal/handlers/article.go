@@ -285,9 +285,13 @@ func AddComment(c *fiber.Ctx) error {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create a comment."})
 	}
 
-	res, err := utils.ResponseOmitFilter(newComment, []string{"article", "user"})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot make a response object."})
+	var res types.CommentQuery
+	if getCommentResult := db.Table("comments c").
+		Select([]string{"c.*", "u.id as caid", "u.username", "u.name", "u.image"}).
+		Joins("JOIN users u ON c.\"commentAuthor_id\" = u.id").
+		Where("c.id = ?", newComment.ID).
+		Take(&res); getCommentResult.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot get a new comment."})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(res)

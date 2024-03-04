@@ -350,8 +350,9 @@ func GetComments(c *fiber.Ctx) error {
 	var comments []types.CommentQuery
 	if findCommentsResult := db.Table("comments c").
 		Select([]string{"c.*", "u.id as caid", "u.username", "u.name", "u.image"}).
-		Joins("JOIN users u ON \"commentAuthor_id\" = u.id").
+		Joins("JOIN users u ON c.\"commentAuthor_id\" = u.id").
 		Where("c.article_id = ?", foundArticle.ID).
+		Order("created_at ASC").
 		Find(&comments); findCommentsResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find comments"})
 	}

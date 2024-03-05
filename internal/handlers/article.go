@@ -154,24 +154,23 @@ func FavouriteArticle(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a favourite relation."})
 	}
 
-	if findFavouriteResult.RowsAffected > 0 {
+	if findFavouriteResult.RowsAffected != 0 {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "You've already favourited this article."})
 	}
 
 	err := db.Transaction(func(tx *gorm.DB) error {
 
-		newFavouriteRelation := models.Favourite{
+		if createFavouriteRelationResult := tx.Create(&models.Favourite{
 			ArticleID: foundArticle.ID,
 			UserID:    loggedInUserID,
-		}
-		if createFavouriteRelationResult := tx.Create(&newFavouriteRelation); createFavouriteRelationResult.Error != nil {
-			return errors.New("Cannot favourite this article: Error on create favourite relation.")
+		}); createFavouriteRelationResult.Error != nil {
+			return errors.New("error on create favourite relation")
 		}
 
 		foundArticle.FavouriteCount += 1
 		if updateArticleResult := tx.Select("favourite_count").
 			Save(&foundArticle); updateArticleResult.Error != nil {
-			return errors.New("Cannot favourite this article: Error on update article's favourite count.")
+			return errors.New("error on update article's favourite count")
 		}
 
 		return nil
@@ -179,10 +178,10 @@ func FavouriteArticle(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot favourite this article: " + err.Error()})
 	}
 
-	return c.JSON(foundArticle)
+	return c.Status(fiber.StatusCreated).JSON(foundArticle)
 }
 
 func UnfavouriteArticle(c *fiber.Ctx) error {
@@ -213,13 +212,13 @@ func UnfavouriteArticle(c *fiber.Ctx) error {
 
 		if deleteFavouriteRelationResult := tx.Where("user_id = ? AND article_id = ?", loggedInUserID, foundArticle.ID).
 			Delete(&models.Favourite{}); deleteFavouriteRelationResult.Error != nil {
-			return errors.New("Cannot unfavourite this article: Error on delete favourite relation.")
+			return errors.New("error on delete favourite relation")
 		}
 
 		foundArticle.FavouriteCount -= 1
 		if updateArticleResult := tx.Select("favourite_count").
 			Save(&foundArticle); updateArticleResult.Error != nil {
-			return errors.New("Cannot unfavourite this article: Error on update article's favourite count.")
+			return errors.New("error on update article's favourite count")
 		}
 
 		return nil
@@ -227,7 +226,7 @@ func UnfavouriteArticle(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot unfavourite this article: " + err.Error()})
 	}
 
 	return c.JSON(foundArticle)
@@ -262,7 +261,7 @@ func AddComment(c *fiber.Ctx) error {
 		ArticleID:       foundArticle.ID,
 	}
 	if addCommentResult := db.Create(&newComment); addCommentResult.Error != nil {
-		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create a comment."})
+		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot add a comment."})
 	}
 
 	var res types.CommentQuery

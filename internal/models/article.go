@@ -12,5 +12,5 @@ type Article struct {
 	Tags           pq.StringArray `json:"tags" gorm:"type:text[];default:'{}'"`
 	FavouriteCount uint           `json:"favouriteCount"`
 	AuthorID       string         `json:"author_id"`
-	Author         User           `json:"author" gorm:"foreignKey:AuthorID;"`
+	Author         User           `json:"-" gorm:"foreignKey:AuthorID;"`
 }

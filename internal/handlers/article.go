@@ -44,12 +44,7 @@ func CreateArticle(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot create an article."})
 	}
 
-	res, err := utils.ResponseOmitFilter(createdArticle, []string{"author"})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot make a response object"})
-	}
-
-	return c.Status(fiber.StatusCreated).JSON(res)
+	return c.Status(fiber.StatusCreated).JSON(createdArticle)
 
 }
 
@@ -86,12 +81,7 @@ func EditArticle(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No article found."})
 	}
 
-	res, err := utils.ResponseOmitFilter(editedArticle, []string{"author"})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot make a response object"})
-	}
-
-	return c.JSON(res)
+	return c.JSON(editedArticle)
 
 }
 
@@ -192,12 +182,7 @@ func FavouriteArticle(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	res, err := utils.ResponseOmitFilter(foundArticle, []string{"author"})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot make a response object."})
-	}
-
-	return c.JSON(res)
+	return c.JSON(foundArticle)
 }
 
 func UnfavouriteArticle(c *fiber.Ctx) error {
@@ -245,12 +230,7 @@ func UnfavouriteArticle(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	res, err := utils.ResponseOmitFilter(foundArticle, []string{"author"})
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot make a response object."})
-	}
-
-	return c.JSON(res)
+	return c.JSON(foundArticle)
 }
 
 func AddComment(c *fiber.Ctx) error {

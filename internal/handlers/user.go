@@ -21,7 +21,7 @@ func GetCurrentUser(c *fiber.Ctx) error {
 	db := database.DB
 	var foundUser models.User
 	if findResult := db.First(&foundUser, "id = ?", loggedInUserID); findResult.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find a user"})
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "No user found."})
 	}
 
 	return c.JSON(foundUser)
@@ -110,7 +110,7 @@ func ChangeUserPassword(c *fiber.Ctx) error {
 
 	foundUser.Password = string(newHashedPassword)
 	if updateResult := db.Select("password").Save(foundUser); updateResult.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot update a user password."})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot update a user's password."})
 	}
 	return c.JSON(foundUser)
 }
@@ -137,7 +137,7 @@ func ChangeUserEmail(c *fiber.Ctx) error {
 	if findEmailResult.Error != nil && !errors.Is(findEmailResult.Error, gorm.ErrRecordNotFound) {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find an email."})
 	}
-	if findEmailResult.Error == nil {
+	if findEmailResult.RowsAffected != 0 {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": "This email is already used."})
 	}
 
@@ -183,7 +183,7 @@ func FollowUser(c *fiber.Ctx) error {
 			FollowingID: userToFollow.ID,
 			FollowerID:  loggedInUserID,
 		}); followResult.Error != nil {
-			return errors.New("Cannot follow a user: Error on create follow relation.")
+			return errors.New("error on create follow relation")
 		}
 
 		if updateLoggedInUserResult := tx.Model(&models.User{}).
@@ -191,20 +191,20 @@ func FollowUser(c *fiber.Ctx) error {
 			Updates(map[string]interface{}{
 				"following_count": gorm.Expr("following_count + 1"),
 			}); updateLoggedInUserResult.Error != nil {
-			return errors.New("Cannot follow a user: Error on update a logged-in user.")
+			return errors.New("error on update a logged-in user")
 		}
 
 		userToFollow.FollowerCount += 1
 		if updateTargetUserResult := tx.Select("follower_count").
 			Save(userToFollow); updateTargetUserResult.Error != nil {
-			return errors.New("Cannot follow a user: Error on update a target user.")
+			return errors.New("error on update a target user")
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot follow a user: " + err.Error()})
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(userToFollow)
@@ -243,7 +243,7 @@ func UnfollowUser(c *fiber.Ctx) error {
 		if unfollowResult := tx.
 			Where("follower_id = ? AND following_id = ?", loggedInUserID, userToUnfollow.ID).
 			Delete(&models.Follow{}); unfollowResult.Error != nil {
-			return errors.New("Cannot follow a user: Error on delete follow relation.")
+			return errors.New("error on delete follow relation")
 		}
 
 		if updateLoggedInUserResult := tx.Model(&models.User{}).
@@ -251,13 +251,13 @@ func UnfollowUser(c *fiber.Ctx) error {
 			Updates(map[string]interface{}{
 				"following_count": gorm.Expr("following_count - 1"),
 			}); updateLoggedInUserResult.Error != nil {
-			return errors.New("Cannot follow a user: Error on update a logged-in user.")
+			return errors.New("error on update a logged-in user")
 		}
 
 		userToUnfollow.FollowerCount -= 1
 		if updateTargetUserResult := tx.Select("follower_count").
 			Save(userToUnfollow); updateTargetUserResult.Error != nil {
-			return errors.New("Cannot follow a user: Error on update a target user.")
+			return errors.New("error on update a target user")
 		}
 
 		return nil
@@ -267,7 +267,7 @@ func UnfollowUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(userToUnfollow)
+	return c.Status(fiber.StatusOK).JSON(userToUnfollow)
 
 }
 

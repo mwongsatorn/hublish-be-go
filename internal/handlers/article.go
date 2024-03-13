@@ -499,7 +499,7 @@ func SearchArticles(c *fiber.Ctx) error {
 	tags := c.Query("tags")
 
 	page, err := strconv.Atoi(c.Query("page", "1"))
-	if err != nil {
+	if err != nil || page <= 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
 	}
 	limit, err := strconv.Atoi(c.Query("limit", "10"))
@@ -516,20 +516,17 @@ func SearchArticles(c *fiber.Ctx) error {
 		db = db.Or("EXISTS (SELECT 1 FROM UNNEST(a.tags) AS E WHERE E ILIKE ?)", "%"+tags+"%")
 	}
 
-	var totalResults int64
-	if countTotalResults := db.Count(&totalResults); countTotalResults.Error != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot count total results."})
-	}
-
 	var foundArticles []types.ArticleQuery
+	var totalResults int64
 	if findArticlesResult := db.
 		Select([]string{"a.*", "u.id as aid", "u.username", "u.name", "u.bio", "u.image",
 			"CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS favourited"}).
 		Joins("JOIN users u ON a.author_id = u.id").
 		Joins("LEFT JOIN favourites f ON f.article_id = a.id AND f.user_id = ?", loggedInUserID).
+		Order("created_at DESC").
+		Count(&totalResults).
 		Offset(limit * (page - 1)).
 		Limit(limit).
-		Order("created_at DESC").
 		Find(&foundArticles); findArticlesResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find articles."})
 	}

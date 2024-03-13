@@ -348,6 +348,15 @@ func GetUserCreatedArticles(c *fiber.Ctx) error {
 		loggedInUserID = c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
 	}
 
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil || page <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
+	}
+	limit, err := strconv.Atoi(c.Query("limit", "10"))
+	if err != nil || limit <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
+	}
+
 	var targetUser models.User
 	db := database.DB
 	findTargetUserResult := db.Where("username = ?", targetUsername).First(&targetUser)
@@ -359,6 +368,7 @@ func GetUserCreatedArticles(c *fiber.Ctx) error {
 	}
 
 	var createdArticles []types.ArticleQuery
+	var totalResults int64
 	if findCreatedArticlesResult := db.Table("articles a").
 		Select([]string{"a.*", "u.id as aid", "u.username", "u.name", "u.bio", "u.image",
 			"CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS favourited"}).
@@ -366,11 +376,21 @@ func GetUserCreatedArticles(c *fiber.Ctx) error {
 		Joins("LEFT JOIN favourites f ON f.article_id = a.id AND f.user_id = ?", loggedInUserID).
 		Where("author_id = ?", targetUser.ID).
 		Order("a.created_at DESC").
+		Count(&totalResults).
+		Offset(limit * (page - 1)).
+		Limit(limit).
 		Find(&createdArticles); findCreatedArticlesResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find created articles."})
 	}
 
-	return c.JSON(createdArticles)
+	res := types.SearchQuery[types.ArticleQuery]{
+		TotalResults: int(totalResults),
+		TotalPages:   (int(totalResults) + limit - 1) / limit,
+		Page:         page,
+		Results:      createdArticles,
+	}
+
+	return c.JSON(res)
 }
 
 func GetUserFavouriteArticles(c *fiber.Ctx) error {

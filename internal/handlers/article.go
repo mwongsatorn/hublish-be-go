@@ -451,7 +451,17 @@ func GetUserFeedArticles(c *fiber.Ctx) error {
 
 	loggedInUserID := c.Locals("user").(*jwt.Token).Claims.(*types.CustomClaims).UserID
 
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil || page <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
+	}
+	limit, err := strconv.Atoi(c.Query("limit", "10"))
+	if err != nil || limit <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Query is not valid"})
+	}
+
 	var feedArticles []types.ArticleQuery
+	var totalResults int64
 	db := database.DB
 	if findFeedArticlesResult := db.Table("articles a").
 		Select([]string{"a.*", "u.id as aid", "u.username", "u.name", "u.bio", "u.image",
@@ -460,11 +470,21 @@ func GetUserFeedArticles(c *fiber.Ctx) error {
 		Joins("JOIN follows f1 ON f1.following_id = a.author_id AND f1.follower_id = ?", loggedInUserID).
 		Joins("LEFT JOIN favourites f2 ON f2.article_id = a.id AND f2.user_id = ?", loggedInUserID).
 		Order("a.created_at DESC").
+		Count(&totalResults).
+		Offset(limit * (page - 1)).
+		Limit(limit).
 		Find(&feedArticles); findFeedArticlesResult.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Cannot find feed articles."})
 	}
 
-	return c.JSON(feedArticles)
+	res := types.SearchQuery[types.ArticleQuery]{
+		TotalResults: int(totalResults),
+		TotalPages:   (int(totalResults) + limit - 1) / limit,
+		Page:         page,
+		Results:      feedArticles,
+	}
+
+	return c.JSON(res)
 
 }
 

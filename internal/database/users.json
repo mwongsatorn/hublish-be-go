@@ -1,0 +1,72 @@
+[
+  {
+    "username": "hublish0001",
+    "email": "hublish0001@gmail.com",
+    "password": "hublish0001",
+    "name": "Emily Johnson",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=e11d48"
+  },
+  {
+    "username": "hublish0002",
+    "email": "hublish0002@gmail.com",
+    "password": "hublish0002",
+    "name": "Samuel Rodriguez",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=db2777"
+  },
+  {
+    "username": "hublish0003",
+    "email": "hublish0003@gmail.com",
+    "password": "hublish0003",
+    "name": "Sophia Patel",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=16a34a"
+  },
+  {
+    "username": "hublish0004",
+    "email": "hublish0004@gmail.com",
+    "password": "hublish0004",
+    "name": "Alexander Nguyen",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=0d9488"
+  },
+  {
+    "username": "hublish0005",
+    "email": "hublish0005@gmail.com",
+    "password": "hublish0005",
+    "name": "Olivia Brown",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=4f46e5"
+  },
+  {
+    "username": "hublish0006",
+    "email": "hublish0006@gmail.com",
+    "password": "hublish0006",
+    "name": "Benjamin Ali",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=ca8a04"
+  },
+  {
+    "username": "hublish0007",
+    "email": "hublish0007@gmail.com",
+    "password": "hublish0007",
+    "name": "Isabella Garcia",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=ea580c"
+  },
+  {
+    "username": "hublish0008",
+    "email": "hublish0008@gmail.com",
+    "password": "hublish0008",
+    "name": "William Smith",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=059669"
+  },
+  {
+    "username": "hublish0009",
+    "email": "hublish0009@gmail.com",
+    "password": "hublish0009",
+    "name": "Mia Khan",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=db2777"
+  },
+  {
+    "username": "hublish0010",
+    "email": "hublish0010@gmail.com",
+    "password": "hublish0010",
+    "name": "Ethan Kim",
+    "image": "https://api.dicebear.com/7.x/thumbs/svg?radius=50&size=240&backgroundColor=f0f0f0&mouth=variant2&shapeColor=d97706"
+  }
+]

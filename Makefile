@@ -11,6 +11,9 @@ build:
 run:
 	@go run cmd/api/main.go
 
+seed:
+	@go run cmd/api/main.go -seed
+
 # Create DB container
 docker-run:
 	@if docker compose up -d 2>/dev/null; then \

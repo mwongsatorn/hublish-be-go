@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"hublish-be-go/internal/database"
 	"hublish-be-go/internal/routes"
@@ -12,6 +13,16 @@ import (
 )
 
 func main() {
+
+	seed := flag.Bool("seed", false, "")
+	flag.Parse()
+
+	if *seed {
+		database.ConnectDatabase()
+		database.SeedDatabase()
+		return
+	}
+
 	app := fiber.New()
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     "http://localhost:5173",
